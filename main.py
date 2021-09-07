@@ -1,0 +1,444 @@
+from datetime import datetime, timezone
+from glob import glob
+from uuid import uuid4
+
+from discord import (
+    Activity,
+    ActivityType,
+    Color,
+    Embed,
+    Guild,
+    Intents,
+    Member,
+    Message,
+)
+from discord.ext.commands import Bot
+from discord_slash import (
+    ComponentContext,
+    MenuContext,
+    SlashCommand,
+    SlashContext,
+)
+from discord_slash.model import (
+    ContextMenuType,
+    SlashCommandOptionType,
+    SlashCommandPermissionType,
+)
+from discord_slash.utils.manage_commands import (
+    create_choice,
+    create_option,
+    create_permission,
+)
+from loguru import logger
+
+from config import CONFIG
+from database import Block, Report
+from utils import REASONS_DICT, ban_user, create_block, send_report_embed
+
+intents = Intents.default()
+intents.members = True
+client = Bot(command_prefix=uuid4().hex, intents=intents)
+slash = SlashCommand(
+    client,
+    # sync_commands=True,
+)
+
+
+@client.event
+async def on_ready():
+    client.started = datetime.utcnow()
+    await client.change_presence(
+        activity=Activity(type=ActivityType.watching, name='/report')
+    )
+    logger.info(f'Ready as {client.user}')
+
+
+@client.event
+async def on_component(ctx: ComponentContext):
+    if not ctx.custom_id.startswith('reportaction_'):
+        return
+
+    _, report_id, action = ctx.custom_id.split('_')
+
+    report = Report.objects.get(id=report_id)  # pylint: disable=no-member
+
+    if action == 'ignore':
+        report.reviewed = True
+        report.save()
+
+        await ctx.edit_origin(
+            content=f'Ignored by {ctx.author.mention}', components=[]
+        )
+    elif action == 'block':
+        reason = ctx.selected_options[0]
+
+        await create_block(
+            client,
+            user_id=report.user_id,
+            reason=reason,
+            moderator_id=ctx.author.id,
+        )
+
+        report.reviewed = True
+        report.save()
+
+        await ctx.edit_origin(
+            content=f'Blocked by {ctx.author.mention} for {REASONS_DICT[reason]}',
+            components=[],
+        )
+
+
+@client.event
+async def on_guild_join(guild: Guild):
+    logger.info(f'Joined guild {guild.name}')
+
+    channel = client.get_channel(CONFIG.server.channels.server_joins)
+
+    embed = Embed(title=f'Joined {guild.name}', color=Color.green())
+
+    embed.set_thumbnail(url=guild.icon_url)
+
+    embed.add_field(name='Member count', value=guild.member_count)
+    embed.add_field(name='ID', value=guild.id)
+    embed.add_field(
+        name='Created',
+        value=f'<t:{int(guild.created_at.replace(tzinfo=timezone.utc).timestamp())}:R>',
+    )
+
+    await channel.send(embed=embed)
+
+
+@client.event
+async def on_guild_remove(guild: Guild):
+    logger.info(f'Left guild {guild.name}')
+
+    channel = client.get_channel(CONFIG.server.channels.server_leaves)
+
+    embed = Embed(title=f'Left {guild.name}', color=Color.red())
+
+    embed.set_thumbnail(url=guild.icon_url)
+
+    embed.add_field(name='Member count', value=guild.member_count)
+    embed.add_field(name='ID', value=guild.id)
+    embed.add_field(
+        name='Created',
+        value=f'<t:{int(guild.created_at.replace(tzinfo=timezone.utc).timestamp())}:R>',
+    )
+
+    await channel.send(embed=embed)
+
+
+@client.event
+async def on_member_join(member: Member):
+    guild = member.guild
+
+    logger.debug(f'{member} joined {guild}')
+
+    try:
+        # pylint: disable=no-member
+        Block.objects.get(user_id=member.id)
+        if guild.id not in CONFIG.noban_servers:
+            await ban_user(client, guild, member)
+    except Block.DoesNotExist:
+        pass
+
+
+@slash.slash(name='ping', description='See if the bot is alive')
+async def ping(ctx: SlashContext):
+    await ctx.send("I'm alive!", hidden=True)
+
+
+@slash.slash(name='server', description='Join our support server')
+async def server(ctx: SlashContext):
+    await ctx.send(f'https://discord.gg/{CONFIG.server.invite}', hidden=True)
+
+
+@slash.slash(
+    name='stats',
+    description='See information about Blockbot',
+    guild_ids=[CONFIG.server.id],
+)
+async def stats(ctx: SlashContext):
+    await ctx.defer(hidden=True)
+
+    embed = Embed(title='Blockbot Stats', color=Color.green())
+
+    embed.set_thumbnail(url=client.user.avatar_url)
+
+    embed.add_field(
+        name='Server count', value=f'**`{len(client.guilds)}`** servers'
+    )
+    embed.add_field(
+        name='Total members',
+        value=f'**`{sum(guild.member_count for guild in client.guilds)}`** members',
+    )
+
+    # pylint: disable=no-member
+    embed.add_field(
+        name='Blocked', value=f'**`{Block.objects.count()}`** users'
+    )
+    embed.add_field(
+        name='Reports', value=f'**`{Report.objects.count()}`** reports'
+    )
+
+    lines_of_code = sum(
+        sum(line.strip() != '' for line in open(source_path))
+        for source_path in glob('*.py')
+    )
+    embed.add_field(
+        name='Code amount', value=f'**`{lines_of_code}`** lines of Python'
+    )
+
+    embed.add_field(
+        name='Uptime',
+        value=f'Started **<t:{int(client.started.replace(tzinfo=timezone.utc).timestamp())}:R>**',
+    )
+
+    await ctx.send(embed=embed, hidden=True)
+
+
+@slash.slash(
+    name='report',
+    description="Report a user for breaking Discord's rules",
+    options=[
+        create_option(
+            name='user',
+            description='The user to report',
+            option_type=SlashCommandOptionType.USER,
+            required=True,
+        ),
+        create_option(
+            name='evidence',
+            description="Evidence to prove what the user did to violate Discord's terms of service or community guidelines",
+            option_type=SlashCommandOptionType.STRING,
+            required=True,
+        ),
+    ],
+)
+async def report(ctx: SlashContext, user: Member, evidence: str):
+    logger.debug(f'{ctx.author} reported {user} for {evidence}')
+
+    if isinstance(user, int):
+        user = await client.fetch_user(user)
+
+    await ctx.defer(hidden=True)
+
+    if ctx.author == user:
+        await ctx.send('You cannot report yourself.', hidden=True)
+        return
+    elif user == client.user or user.id in CONFIG.immune:
+        await ctx.send(f'{user.mention} is immune to reporting.', hidden=True)
+        return
+
+    # pylint: disable=no-member
+    if Report.objects(
+        user_id=user.id, reporter_id=ctx.author.id, reviewed=False
+    ):
+        await ctx.send(f"You've already reported {user.mention}.", hidden=True)
+        return
+
+    report = Report(
+        reason=evidence, user_id=user.id, reporter_id=ctx.author.id
+    )
+    report.save()
+
+    await send_report_embed(
+        client,
+        reported=user,
+        reporter=ctx.author,
+        reason=evidence,
+        timestamp=report.timestamp.replace(tzinfo=timezone.utc),
+        report_id=str(report.id),
+    )
+
+    await ctx.send(
+        f"{user.mention} has been reported for breaking Discord's rules.",
+        hidden=True,
+    )
+
+
+@slash.slash(
+    name='lookup',
+    description='Finds global block information about a user',
+    guild_ids=[CONFIG.server.id, CONFIG.server.appeals_id],
+    options=[
+        create_option(
+            name='user',
+            description='The user to find',
+            option_type=SlashCommandOptionType.USER,
+            required=True,
+        )
+    ],
+    permissions={
+        CONFIG.server.id: [
+            create_permission(
+                CONFIG.server.roles.global_mod,
+                SlashCommandPermissionType.ROLE,
+                True,
+            ),
+            create_permission(
+                CONFIG.server.roles.everyone,
+                SlashCommandPermissionType.ROLE,
+                False,
+            ),
+        ]
+    },
+)
+async def lookup(ctx: SlashContext, user: Member):
+    logger.debug(f'Looking up {user}')
+
+    if isinstance(user, int):
+        user = await client.fetch_user(user)
+
+    immune = user.id in CONFIG.immune
+
+    # pylint: disable=no-member
+    if Report.objects(user_id=user.id, reviewed=False):
+        open_reports = True
+    else:
+        open_reports = False
+
+    # pylint: disable=no-member
+    if Block.objects(user_id=user.id):
+        blocked = True
+        # pylint: disable=no-member
+        block = Block.objects.get(user_id=user.id)
+        reason = REASONS_DICT[block.reason]
+        block_timestamp = block.timestamp.replace(tzinfo=timezone.utc)
+        block_moderator = await client.fetch_user(block.moderator_id)
+    else:
+        blocked = False
+
+    embed = Embed(color=Color.gold() if immune else Color.blurple())
+    embed.set_author(name=str(user), icon_url=user.avatar_url)
+
+    embed.add_field(
+        name='Open reports',
+        value='Yes' if open_reports else 'No',
+        inline=False,
+    )
+    embed.add_field(name='Blocked', value='Yes' if blocked else 'No')
+
+    if blocked:
+        embed.add_field(
+            name='Block reason',
+            value=f'{reason}\n(<t:{int(block_timestamp.replace(tzinfo=timezone.utc).timestamp())}:R>)',
+        )
+        embed.add_field(
+            name='Blocking moderator',
+            value=f'{block_moderator.mention}\n`{block_moderator}`\n`{block_moderator.id}`',
+        )
+
+    await ctx.send(embed=embed, hidden=True)
+
+
+@slash.slash(
+    name='block',
+    description='Block a user without a report',
+    guild_ids=[CONFIG.server.id, CONFIG.server.appeals_id],
+    options=[
+        create_option(
+            name='user',
+            description='The user to block',
+            option_type=SlashCommandOptionType.USER,
+            required=True,
+        ),
+        create_option(
+            name='reason',
+            description='Reason for blocking',
+            option_type=SlashCommandOptionType.STRING,
+            required=True,
+            choices=[
+                create_choice(name=name, value=value)
+                for value, name in CONFIG.reasons
+            ],
+        ),
+    ],
+    permissions={
+        CONFIG.server.id: [
+            create_permission(
+                CONFIG.server.roles.global_mod,
+                SlashCommandPermissionType.ROLE,
+                True,
+            ),
+            create_permission(
+                CONFIG.server.roles.everyone,
+                SlashCommandPermissionType.ROLE,
+                False,
+            ),
+        ]
+    },
+)
+async def block(ctx: SlashContext, user: Member, reason: str):
+    logger.debug(f'{ctx.author} blocked {user} for {reason}')
+
+    if isinstance(user, int):
+        user = await client.fetch_user(user)
+
+    await ctx.defer(hidden=True)
+
+    await create_block(
+        client,
+        user_id=user.id,
+        reason=reason,
+        moderator_id=ctx.author.id,
+    )
+
+    await ctx.send(f'Blocked {user.mention}', hidden=True)
+
+
+@slash.context_menu(
+    target=ContextMenuType.MESSAGE,
+    name='Report message',
+)
+async def report_message(ctx: MenuContext):
+    message: Message = ctx.target_message
+    user: Member = message.author
+    reason: str = message.content or '*`No message content`*'
+
+    logger.debug(f'{ctx.author} reported {user} for {reason}')
+
+    await ctx.defer(hidden=True)
+
+    if ctx.author == user:
+        await ctx.send('You cannot report yourself.', hidden=True)
+        return
+    elif user == client.user or user.id in CONFIG.immune:
+        await ctx.send(f'{user.mention} is immune to reporting.', hidden=True)
+        return
+
+    # pylint: disable=no-member
+    if Report.objects(
+        user_id=user.id, reporter_id=ctx.author.id, reviewed=False
+    ):
+        await ctx.send(f"You've already reported {user.mention}.", hidden=True)
+        return
+    elif Report.objects(message_id=message.id):
+        await ctx.send(f'This message has already been reported.', hidden=True)
+        return
+
+    report = Report(
+        reason=reason,
+        user_id=user.id,
+        reporter_id=ctx.author.id,
+        message_id=message.id,
+    )
+    report.save()
+
+    await send_report_embed(
+        client,
+        reported=user,
+        reporter=ctx.author,
+        reason=reason,
+        timestamp=report.timestamp.replace(tzinfo=timezone.utc),
+        report_id=str(report.id),
+        message=True,
+    )
+
+    await ctx.send(
+        f"{user.mention} has been reported for breaking Discord's rules. Note that we currently cannot view attachments of reported messages, so please join https://discord.gg/{CONFIG.server.invite} if the attachments of this message are relevant to your report.",
+        hidden=True,
+    )
+
+
+client.run(CONFIG.bot.token)

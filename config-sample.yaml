@@ -1,0 +1,51 @@
+bot:
+    token: xxx
+
+database:
+    host: mongodb+srv://xxx:xxx@xxx/xxx?retryWrites=true&w=majority
+
+server:
+    id: 123
+    appeals_id: 123
+
+    invite: xxx
+    appeals_invite: xxx
+
+    channels:
+        block_logs: 123
+        reports: 123
+        server_joins: 123
+        server_leaves: 123
+
+    roles:
+        global_mod: 123
+        everyone: 123
+
+immune:
+    - 123
+
+noban_servers:
+    - 123
+
+reasons:
+    - [underage, "1.1. Underage User"]
+    - [marketing, "1.2. Unsolicited Marketing"]
+    - [harassment, "1.3. Harassment"]
+    - [illegal, "1.4. Illegal Activity"]
+    - [virus, "1.5. Uploading Viruses"]
+    - [phishing, "1.6. Phishing"]
+    - [copyright, "1.7. Intellectual Property Violations"]
+    - [misctos, "1.X. Other Terms of Service Violations"]
+    - [hate, "2.1. Hate Speech"]
+    - [threat, "2.2. Threats of Violence or Harm"]
+    - [evasion, "2.3. Evading Blocks or Bans"]
+    - [sexualizing, "2.4. Sexualizing Minors"]
+    - [explicitconsent, "2.5. Explicit Content Without Consent"]
+    - [selfharm, "2.6. Glorification of Self-Harm"]
+    - [gorecruelty, "2.7. Sadistic Gore or Animal Cruelty"]
+    - [extremism, "2.8. Violent Extremism"]
+    - [dangeroussale, "2.9. Sale of Prohibited or Dangerous Goods"]
+    - [pirated, "2.10. Pirated Software or Stolen Accounts"]
+    - [discordsale, "2.11. Sale of Accounts or Servers"]
+    - [selfbot, "2.12. Self-Bot Usage"]
+    - [misccg, "2.X. Other Community Guidelines Violations"]
