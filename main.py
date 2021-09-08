@@ -132,12 +132,11 @@ async def on_guild_remove(guild: Guild):
 async def on_member_join(member: Member):
     guild = member.guild
 
-    logger.debug(f'{member} joined {guild}')
-
     try:
         # pylint: disable=no-member
         Block.objects.get(user_id=member.id)
         if guild.id not in CONFIG.noban_servers:
+            logger.debug(f'{member} joined {guild}, banning due to block')
             await ban_user(client, guild, member)
     except Block.DoesNotExist:
         pass
