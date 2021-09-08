@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from glob import glob
 from uuid import uuid4
+import time
 
 from discord import (
     Activity,
