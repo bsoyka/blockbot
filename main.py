@@ -144,7 +144,43 @@ async def on_member_join(member: Member):
 
 @slash.slash(name='ping', description='See if the bot is alive')
 async def ping(ctx: SlashContext):
-    await ctx.send("I'm alive!", hidden=True)
+    start = time.monotonic()
+    message = await ctx.send("Pinging...", hidden=True)
+    end = time.monotonic()
+    totalPing = round((end - start) * 1000, 2)
+    e = discord.Embed(title="Pinging...", description=f"Overall Latency: {totalPing}ms")
+    await asyncio.sleep(0.25)
+    try:
+         await message.edit(content=None, embed=e)
+    except discord.NotFound:
+        return
+
+    botPing = round(self.bot.latency * 1000, 2)
+    e.description = e.description + f"\nDiscord WebSocket Latency: {botPing}ms"
+    await asyncio.sleep(0.25)
+
+    averagePing = (botPing + totalPing) / 2
+    if averagePing >= 10000:
+        color = discord.Color.dark_blue()
+    elif averagePing >= 1000:
+        color = discord.Colour.red()
+    elif averagePing >= 200:
+        color = discord.Colour.orange()
+    else:
+        color = discord.Colour.green()
+
+    e.color = color
+    try:
+        await message.edit(embed=e)
+     except discord.NotFound:
+        return
+
+    e.title = "Ponged!"
+    await asyncio.sleep(0.25)
+    try:
+        await message.edit(embed=e)
+    except discord.NotFound:
+        return
 
 
 @slash.slash(name='server', description='Join our support server')
