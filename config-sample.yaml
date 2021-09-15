@@ -18,6 +18,7 @@ server:
         server_leaves: 123
 
     roles:
+        developer: 123
         global_mod: 123
         everyone: 123
 

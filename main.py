@@ -224,6 +224,50 @@ async def stats(ctx: SlashContext):
 
 
 @slash.slash(
+    name='eval',
+    description='Evaluates a Python expression',
+    options=[
+        create_option(
+            name='expression',
+            description='The expression to evaluate',
+            option_type=SlashCommandOptionType.STRING,
+            required=True,
+        ),
+    ],
+    guild_ids=[CONFIG.server.id],
+    permissions=Permissions.DEVELOPER_ONLY.value,
+)
+async def eval_(ctx: SlashContext, expression: str):
+    await ctx.defer(hidden=True)
+
+    try:
+        result = eval(expression)
+        result_type = type(result)
+        result_repr = repr(result)
+        result_str = str(result)
+    except Exception as exc:
+        result = exc
+        result_type = type(exc)
+        result_repr = repr(exc)
+        result_str = str(exc)
+
+    embed = Embed(
+        title='Eval',
+        description=f'```py\n{result}\n```',
+        color=Color.blurple(),
+    )
+
+    embed.add_field(
+        name='Code', value=f'```py\n{expression}\n```', inline=False
+    )
+    embed.add_field(name='Type', value=f'**`{result_type.__name__}`**')
+    embed.add_field(name='Repr', value=f'**`{result_repr}`**')
+    embed.add_field(name='Str', value=f'**`{result_str}`**')
+
+    await ctx.send(embed=embed, hidden=True)
+
+
+@slash.slash(
     name='report',
     description="Report a user for breaking Discord's rules",
     options=[
