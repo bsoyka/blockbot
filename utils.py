@@ -1,8 +1,11 @@
 from datetime import datetime, timezone
+from enum import Enum
+from typing import Dict, List
 
-from discord import Client, Color, Embed, Guild, Member, User
+from discord import Client, Color, Embed, Guild, Member
 from discord.errors import Forbidden, NotFound
-from discord_slash.model import ButtonStyle
+from discord_slash.model import ButtonStyle, SlashCommandPermissionType
+from discord_slash.utils.manage_commands import create_permission
 from discord_slash.utils.manage_components import (
     create_actionrow,
     create_button,
@@ -15,6 +18,69 @@ from config import CONFIG
 from database import Block
 
 REASONS_DICT = dict(CONFIG.reasons)
+
+
+def make_report_actionrows(
+    report_id: str, *, askinfo_disabled: bool = False
+) -> List[Dict]:
+    return [
+        create_actionrow(
+            create_select(
+                options=[
+                    create_select_option(title, value=value)
+                    for value, title in CONFIG.reasons
+                ],
+                placeholder='Global block',
+                min_values=1,
+                max_values=1,
+                custom_id=f'reportaction_{report_id}_block',
+            )
+        ),
+        create_actionrow(
+            create_button(
+                style=ButtonStyle.green,
+                label='Ignore',
+                custom_id=f'reportaction_{report_id}_ignore',
+            ),
+            create_button(
+                style=ButtonStyle.blurple,
+                label='Ask for more info',
+                custom_id=f'reportaction_{report_id}_askinfo',
+                disabled=askinfo_disabled,
+            ),
+        ),
+    ]
+
+
+class Permissions(Enum):
+    GLOBAL_MOD_ONLY = {
+        CONFIG.server.id: [
+            create_permission(
+                CONFIG.server.roles.global_mod,
+                SlashCommandPermissionType.ROLE,
+                True,
+            ),
+            create_permission(
+                CONFIG.server.roles.everyone,
+                SlashCommandPermissionType.ROLE,
+                False,
+            ),
+        ]
+    }
+    DEVELOPER_ONLY = {
+        CONFIG.server.id: [
+            create_permission(
+                CONFIG.server.roles.developer,
+                SlashCommandPermissionType.ROLE,
+                True,
+            ),
+            create_permission(
+                CONFIG.server.roles.everyone,
+                SlashCommandPermissionType.ROLE,
+                False,
+            ),
+        ]
+    }
 
 
 async def send_report_embed(
@@ -54,27 +120,7 @@ async def send_report_embed(
     await channel.send(
         '@here',
         embed=embed,
-        components=[
-            create_actionrow(
-                create_select(
-                    options=[
-                        create_select_option(title, value=value)
-                        for value, title in CONFIG.reasons
-                    ],
-                    placeholder='Global block',
-                    min_values=1,
-                    max_values=1,
-                    custom_id=f'reportaction_{report_id}_block',
-                )
-            ),
-            create_actionrow(
-                create_button(
-                    style=ButtonStyle.green,
-                    label='Ignore',
-                    custom_id=f'reportaction_{report_id}_ignore',
-                )
-            ),
-        ],
+        components=make_report_actionrows(report_id),
     )
 
 

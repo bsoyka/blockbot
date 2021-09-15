@@ -12,35 +12,30 @@ from discord import (
     Member,
     Message,
 )
+from discord.errors import Forbidden
 from discord.ext.commands import Bot
-from discord_slash import (
-    ComponentContext,
-    MenuContext,
-    SlashCommand,
-    SlashContext,
-)
-from discord_slash.model import (
-    ContextMenuType,
-    SlashCommandOptionType,
-    SlashCommandPermissionType,
-)
-from discord_slash.utils.manage_commands import (
-    create_choice,
-    create_option,
-    create_permission,
-)
+from discord_slash import ComponentContext, MenuContext, SlashCommand, SlashContext
+from discord_slash.model import ContextMenuType, SlashCommandOptionType
+from discord_slash.utils.manage_commands import create_choice, create_option
 from loguru import logger
 
 from config import CONFIG
 from database import Block, Report
-from utils import REASONS_DICT, ban_user, create_block, send_report_embed
+from utils import (
+    REASONS_DICT,
+    Permissions,
+    ban_user,
+    create_block,
+    make_report_actionrows,
+    send_report_embed,
+)
 
 intents = Intents.default()
 intents.members = True
 client = Bot(command_prefix=uuid4().hex, intents=intents)
 slash = SlashCommand(
     client,
-    # sync_commands=True,
+    # sync_commands=True,  # Uncomment if commands are added/removed or paramters are changed
 )
 
 
@@ -69,6 +64,38 @@ async def on_component(ctx: ComponentContext):
         await ctx.edit_origin(
             content=f'Ignored by {ctx.author.mention}', components=[]
         )
+    elif action == 'askinfo':
+        user = await client.fetch_user(report.reporter_id)
+
+        embed = Embed(
+            title='Please provide us with more information',
+            description=f"Hey, {user.mention}! We've reviewed your report and think we need a little more information or evidence.",
+        )
+        embed.add_field(
+            name='Next steps',
+            value=f'Please join our mail server at https://discord.gg/{CONFIG.server.appeals_invite} and create a ticket to provide us more info. Thank you!',
+        )
+        embed.set_footer(text=f'Report ID: {report.id}')
+
+        try:
+            await user.send(embed=embed)
+
+            await ctx.edit_origin(
+                content=f'Successfully asked for more info by {ctx.author.mention}',
+                components=make_report_actionrows(
+                    report_id, askinfo_disabled=True
+                ),
+            )
+        except Forbidden:
+            await ctx.edit_origin(
+                content=f'Failed to ask for more info by {ctx.author.mention}',
+                components=make_report_actionrows(
+                    report_id, askinfo_disabled=True
+                ),
+            )
+
+        report.reviewed = True
+        report.save()
     elif action == 'block':
         reason = ctx.selected_options[0]
 
@@ -268,20 +295,7 @@ async def report(ctx: SlashContext, user: Member, evidence: str):
             required=True,
         )
     ],
-    permissions={
-        CONFIG.server.id: [
-            create_permission(
-                CONFIG.server.roles.global_mod,
-                SlashCommandPermissionType.ROLE,
-                True,
-            ),
-            create_permission(
-                CONFIG.server.roles.everyone,
-                SlashCommandPermissionType.ROLE,
-                False,
-            ),
-        ]
-    },
+    permissions=Permissions.GLOBAL_MOD_ONLY.value,
 )
 async def lookup(ctx: SlashContext, user: Member):
     logger.debug(f'Looking up {user}')
@@ -353,20 +367,7 @@ async def lookup(ctx: SlashContext, user: Member):
             ],
         ),
     ],
-    permissions={
-        CONFIG.server.id: [
-            create_permission(
-                CONFIG.server.roles.global_mod,
-                SlashCommandPermissionType.ROLE,
-                True,
-            ),
-            create_permission(
-                CONFIG.server.roles.everyone,
-                SlashCommandPermissionType.ROLE,
-                False,
-            ),
-        ]
-    },
+    permissions=Permissions.GLOBAL_MOD_ONLY.value,
 )
 async def block(ctx: SlashContext, user: Member, reason: str):
     logger.debug(f'{ctx.author} blocked {user} for {reason}')
