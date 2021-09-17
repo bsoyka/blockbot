@@ -14,7 +14,12 @@ from discord import (
 )
 from discord.errors import Forbidden
 from discord.ext.commands import Bot
-from discord_slash import ComponentContext, MenuContext, SlashCommand, SlashContext
+from discord_slash import (
+    ComponentContext,
+    MenuContext,
+    SlashCommand,
+    SlashContext,
+)
 from discord_slash.model import ContextMenuType, SlashCommandOptionType
 from discord_slash.utils.manage_commands import create_choice, create_option
 from loguru import logger
@@ -174,9 +179,16 @@ async def ping(ctx: SlashContext):
     await ctx.send("I'm alive!", hidden=True)
 
 
-@slash.slash(name='server', description='Join our support server')
+@slash.slash(name='server', description='Join our community/support server')
 async def server(ctx: SlashContext):
     await ctx.send(f'https://discord.gg/{CONFIG.server.invite}', hidden=True)
+
+
+@slash.slash(name='appeal', description='Join our appeals server')
+async def appeal(ctx: SlashContext):
+    await ctx.send(
+        f'https://discord.gg/{CONFIG.server.appeals_invite}', hidden=True
+    )
 
 
 @slash.slash(
