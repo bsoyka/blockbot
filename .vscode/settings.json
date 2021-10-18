@@ -1,1 +1,6 @@
-{ "editor.rulers": [79] }
+{
+    "editor.rulers": [
+        72,
+        79
+    ]
+}
