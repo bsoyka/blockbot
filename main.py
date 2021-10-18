@@ -175,17 +175,17 @@ async def on_member_join(member: Member):
 
 
 @slash.slash(name='ping', description='See if the bot is alive')
-async def ping(ctx: SlashContext):
+async def ping_command(ctx: SlashContext):
     await ctx.send("I'm alive!", hidden=True)
 
 
 @slash.slash(name='server', description='Join our community/support server')
-async def server(ctx: SlashContext):
+async def server_command(ctx: SlashContext):
     await ctx.send(f'https://discord.gg/{CONFIG.server.invite}', hidden=True)
 
 
 @slash.slash(name='appeal', description='Join our appeals server')
-async def appeal(ctx: SlashContext):
+async def appeal_command(ctx: SlashContext):
     await ctx.send(
         f'https://discord.gg/{CONFIG.server.appeals_invite}', hidden=True
     )
@@ -196,7 +196,7 @@ async def appeal(ctx: SlashContext):
     description='See information about Blockbot',
     guild_ids=[CONFIG.server.id],
 )
-async def stats(ctx: SlashContext):
+async def stats_command(ctx: SlashContext):
     await ctx.defer(hidden=True)
 
     embed = Embed(title='Blockbot Stats', color=Color.green())
@@ -249,7 +249,7 @@ async def stats(ctx: SlashContext):
     guild_ids=[CONFIG.server.id],
     permissions=Permissions.DEVELOPER_ONLY.value,
 )
-async def eval_(ctx: SlashContext, expression: str):
+async def eval_command(ctx: SlashContext, expression: str):
     await ctx.defer(hidden=True)
 
     try:
@@ -297,7 +297,7 @@ async def eval_(ctx: SlashContext, expression: str):
         ),
     ],
 )
-async def report(ctx: SlashContext, user: Member, evidence: str):
+async def report_command(ctx: SlashContext, user: Member, evidence: str):
     logger.debug(f'{ctx.author} reported {user} for {evidence}')
 
     if isinstance(user, int):
@@ -353,7 +353,7 @@ async def report(ctx: SlashContext, user: Member, evidence: str):
     ],
     permissions=Permissions.GLOBAL_MOD_ONLY.value,
 )
-async def lookup(ctx: SlashContext, user: Member):
+async def lookup_command(ctx: SlashContext, user: Member):
     logger.debug(f'Looking up {user}')
 
     if isinstance(user, int):
@@ -425,7 +425,7 @@ async def lookup(ctx: SlashContext, user: Member):
     ],
     permissions=Permissions.GLOBAL_MOD_ONLY.value,
 )
-async def block(ctx: SlashContext, user: Member, reason: str):
+async def block_command(ctx: SlashContext, user: Member, reason: str):
     logger.debug(f'{ctx.author} blocked {user} for {reason}')
 
     if isinstance(user, int):
@@ -467,7 +467,7 @@ async def block(ctx: SlashContext, user: Member, reason: str):
     ],
     permissions=Permissions.GLOBAL_MOD_ONLY.value,
 )
-async def mass_block(ctx: SlashContext, user_ids: str, reason: str):
+async def mass_block_command(ctx: SlashContext, user_ids: str, reason: str):
     logger.debug(f'{ctx.author} mass-blocked for {reason}')
 
     await ctx.defer(hidden=True)
