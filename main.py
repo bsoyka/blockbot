@@ -40,7 +40,8 @@ intents.members = True  # pylint: disable=assigning-non-slot
 client = Bot(command_prefix=uuid4().hex, intents=intents)
 slash = SlashCommand(
     client,
-    # sync_commands=True,  # Uncomment if commands are added/removed or paramters are changed
+    # Uncomment if commands are added/removed or paramters are changed:
+    # sync_commands=True,
 )
 
 
@@ -74,11 +75,14 @@ async def on_component(ctx: ComponentContext):
 
         embed = Embed(
             title='Please provide us with more information',
-            description=f"Hey, {user.mention}! We've reviewed your report and think we need a little more information or evidence.",
+            description=f"Hey, {user.mention}! We've reviewed your report and "
+            'think we need a little more information or evidence.',
         )
         embed.add_field(
             name='Next steps',
-            value=f'Please join our mail server at https://discord.gg/{CONFIG.server.appeals_invite} and create a ticket to provide us more info. Thank you!',
+            value='Please join our mail server at '
+            f'https://discord.gg/{CONFIG.server.appeals_invite} and create a '
+            'ticket to provide us more info. Thank you!',
         )
         embed.set_footer(text=f'Report ID: {report.id}')
 
@@ -86,7 +90,8 @@ async def on_component(ctx: ComponentContext):
             await user.send(embed=embed)
 
             await ctx.edit_origin(
-                content=f'Successfully asked for more info by {ctx.author.mention}',
+                content='Successfully asked for more info by '
+                f'{ctx.author.mention}',
                 components=make_report_actionrows(
                     report_id, askinfo_disabled=True
                 ),
@@ -115,7 +120,8 @@ async def on_component(ctx: ComponentContext):
         report.save()
 
         await ctx.edit_origin(
-            content=f'Blocked by {ctx.author.mention} for {REASONS_DICT[reason]}',
+            content=f'Blocked by {ctx.author.mention} for '
+            f'{REASONS_DICT[reason]}',
             components=[],
         )
 
@@ -132,10 +138,9 @@ async def on_guild_join(guild: Guild):
 
     embed.add_field(name='Member count', value=guild.member_count)
     embed.add_field(name='ID', value=guild.id)
-    embed.add_field(
-        name='Created',
-        value=f'<t:{int(guild.created_at.replace(tzinfo=timezone.utc).timestamp())}:R>',
-    )
+
+    timestamp = int(guild.created_at.replace(tzinfo=timezone.utc).timestamp())
+    embed.add_field(name='Created', value=f'<t:{timestamp}:R>')
 
     await channel.send(embed=embed)
 
@@ -152,10 +157,9 @@ async def on_guild_remove(guild: Guild):
 
     embed.add_field(name='Member count', value=guild.member_count)
     embed.add_field(name='ID', value=guild.id)
-    embed.add_field(
-        name='Created',
-        value=f'<t:{int(guild.created_at.replace(tzinfo=timezone.utc).timestamp())}:R>',
-    )
+
+    timestamp = int(guild.created_at.replace(tzinfo=timezone.utc).timestamp())
+    embed.add_field(name='Created', value=f'<t:{timestamp}:R>')
 
     await channel.send(embed=embed)
 
@@ -206,10 +210,9 @@ async def stats_command(ctx: SlashContext):
     embed.add_field(
         name='Server count', value=f'**`{len(client.guilds)}`** servers'
     )
-    embed.add_field(
-        name='Total members',
-        value=f'**`{sum(guild.member_count for guild in client.guilds)}`** members',
-    )
+
+    members = sum(guild.member_count for guild in client.guilds)
+    embed.add_field(name='Total members', value=f'**`{members}`** members')
 
     # pylint: disable=no-member
     embed.add_field(
@@ -227,9 +230,11 @@ async def stats_command(ctx: SlashContext):
         name='Code amount', value=f'**`{lines_of_code}`** lines of Python'
     )
 
+    start_timestamp = int(
+        client.started.replace(tzinfo=timezone.utc).timestamp()
+    )
     embed.add_field(
-        name='Uptime',
-        value=f'Started **<t:{int(client.started.replace(tzinfo=timezone.utc).timestamp())}:R>**',
+        name='Uptime', value=f'Started **<t:{start_timestamp}:R>**'
     )
 
     await ctx.send(embed=embed, hidden=True)
@@ -291,7 +296,8 @@ async def eval_command(ctx: SlashContext, expression: str):
         ),
         create_option(
             name='evidence',
-            description="Evidence to prove what the user did to violate Discord's terms of service or community guidelines",
+            description='Evidence to prove what the user did to violate '
+            "Discord's terms of service or community guidelines",
             option_type=SlashCommandOptionType.STRING,
             required=True,
         ),
@@ -389,13 +395,17 @@ async def lookup_command(ctx: SlashContext, user: Member):
     embed.add_field(name='Blocked', value='Yes' if blocked else 'No')
 
     if blocked:
+        timestamp = int(
+            block_timestamp.replace(tzinfo=timezone.utc).timestamp()
+        )
+
         embed.add_field(
-            name='Block reason',
-            value=f'{reason}\n(<t:{int(block_timestamp.replace(tzinfo=timezone.utc).timestamp())}:R>)',
+            name='Block reason', value=f'{reason}\n(<t:{timestamp}:R>)'
         )
         embed.add_field(
             name='Blocking moderator',
-            value=f'{block_moderator.mention}\n`{block_moderator}`\n`{block_moderator.id}`',
+            value=f'{block_moderator.mention}\n`{block_moderator}`\n'
+            f'`{block_moderator.id}`',
         )
 
     await ctx.send(embed=embed, hidden=True)
@@ -539,7 +549,10 @@ async def report_message(ctx: MenuContext):
     )
 
     await ctx.send(
-        f"{user.mention} has been reported for breaking Discord's rules. Note that we currently cannot view attachments of reported messages, so please join https://discord.gg/{CONFIG.server.invite} if the attachments of this message are relevant to your report.",
+        f"{user.mention} has been reported for breaking Discord's rules. Note "
+        'that we currently cannot view attachments of reported messages, so '
+        f'please join https://discord.gg/{CONFIG.server.invite} if the '
+        'attachments of this message are relevant to your report.',
         hidden=True,
     )
 
