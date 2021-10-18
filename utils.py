@@ -165,7 +165,8 @@ async def create_block(
     embed.add_field(name='Moderator', value=format_user_info(moderator))
     embed.add_field(name='Reason', value=REASONS_DICT[reason])
 
-    await channel.send(embed=embed)
+    block_alert = await channel.send(embed=embed)
+    await block_alert.publish()
 
     for guild in client.guilds:
         if guild.id not in CONFIG.noban_servers:
