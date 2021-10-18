@@ -31,6 +31,7 @@ from utils import (
     Permissions,
     ban_user,
     create_block,
+    format_user_info,
     make_report_actionrows,
     send_report_embed,
 )
@@ -400,9 +401,7 @@ async def lookup_command(ctx: SlashContext, user: Member):
             name='Block reason', value=f'{reason}\n(<t:{timestamp}:R>)'
         )
         embed.add_field(
-            name='Blocking moderator',
-            value=f'{block_moderator.mention}\n`{block_moderator}`\n'
-            f'`{block_moderator.id}`',
+            name='Blocking moderator', value=format_user_info(block_moderator)
         )
 
     await ctx.send(embed=embed, hidden=True)

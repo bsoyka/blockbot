@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Dict, List
 
-from discord import Client, Color, Embed, Guild, Member
+from discord import Client, Color, Embed, Guild, Member, User
 from discord.errors import Forbidden, NotFound
 from discord_slash.model import ButtonStyle, SlashCommandPermissionType
 from discord_slash.utils.manage_commands import create_permission
@@ -101,14 +101,10 @@ async def send_report_embed(
         timestamp=timestamp.replace(tzinfo=timezone.utc),
     )
     embed.add_field(
-        name='Reported',
-        value=f'{reported.mention}\n`{reported}`\n`{reported.id}`',
-        inline=False,
+        name='Reported', value=format_user_info(reported), inline=False
     )
     embed.add_field(
-        name='Reporter',
-        value=f'{reporter.mention}\n`{reporter}`\n`{reporter.id}`',
-        inline=False,
+        name='Reporter', value=format_user_info(reporter), inline=False
     )
     embed.add_field(
         name='Reported message' if message else 'Reason',
@@ -139,7 +135,9 @@ async def create_block(
 
     embed = Embed(
         title='Global block created',
-        description="Due to a violation of Discord's rules, you've been globally banned from all servers Blockbot is in and reported to Discord's Trust & Safety team.",
+        description="Due to a violation of Discord's rules, you've been "
+        'globally banned from all servers Blockbot is in and reported to '
+        "Discord's Trust & Safety team.",
         color=Color.dark_red(),
     )
 
@@ -163,13 +161,8 @@ async def create_block(
         color=Color.dark_red(),
         timestamp=block.timestamp.replace(tzinfo=timezone.utc),
     )
-    embed.add_field(
-        name='User', value=f'{user.mention}\n`{user}`\n`{user.id}`'
-    )
-    embed.add_field(
-        name='Moderator',
-        value=f'{moderator.mention}\n`{moderator}`\n`{moderator.id}`',
-    )
+    embed.add_field(name='User', value=format_user_info(user))
+    embed.add_field(name='Moderator', value=format_user_info(moderator))
     embed.add_field(name='Reason', value=REASONS_DICT[reason])
 
     await channel.send(embed=embed)
@@ -192,12 +185,14 @@ async def ban_user(client: Client, guild: Guild, user: Member):
 
     await guild.ban(
         user,
-        reason=f'Global block by {moderator} ({moderator.id})\n\n{REASONS_DICT[block.reason]}',
+        reason=f'Global block by {moderator} ({moderator.id})\n\n'
+        f'{REASONS_DICT[block.reason]}',
     )
 
     embed = Embed(
         title=f'Banned from {guild.name}',
-        description="You were banned from this server due to your global block for violating Discord's rules.",
+        description='You were banned from this server due to your global block'
+        " for violating Discord's rules.",
     )
     embed.add_field(name='Reason', value=REASONS_DICT[block.reason])
     embed.add_field(
@@ -211,3 +206,7 @@ async def ban_user(client: Client, guild: Guild, user: Member):
         await user.send(embed=embed)
     except Forbidden:
         logger.warning(f'Failed to send message to {user}')
+
+
+def format_user_info(user: User) -> str:
+    return f'{user.mention}\n`{user}`\n`{user.id}`'
