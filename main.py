@@ -36,7 +36,7 @@ from utils import (
 )
 
 intents = Intents.default()
-intents.members = True
+intents.members = True  # pylint: disable=assigning-non-slot
 client = Bot(command_prefix=uuid4().hex, intents=intents)
 slash = SlashCommand(
     client,
