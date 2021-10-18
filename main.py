@@ -443,6 +443,53 @@ async def block(ctx: SlashContext, user: Member, reason: str):
     await ctx.send(f'Blocked {user.mention}', hidden=True)
 
 
+@slash.slash(
+    name='massblock',
+    description='Block multiple users without a report',
+    guild_ids=[CONFIG.server.id, CONFIG.server.appeals_id],
+    options=[
+        create_option(
+            name='user_ids',
+            description='The space-separated user IDs to block',
+            option_type=SlashCommandOptionType.STRING,
+            required=True,
+        ),
+        create_option(
+            name='reason',
+            description='Reason for blocking',
+            option_type=SlashCommandOptionType.STRING,
+            required=True,
+            choices=[
+                create_choice(name=name, value=value)
+                for value, name in CONFIG.reasons
+            ],
+        ),
+    ],
+    permissions=Permissions.GLOBAL_MOD_ONLY.value,
+)
+async def mass_block(ctx: SlashContext, user_ids: str, reason: str):
+    logger.debug(f'{ctx.author} mass-blocked for {reason}')
+
+    await ctx.defer(hidden=True)
+
+    users = [
+        await client.fetch_user(int(user_id))
+        for user_id in user_ids.split(' ')
+    ]
+
+    for user in users:
+        await create_block(
+            client,
+            user_id=user.id,
+            reason=reason,
+            moderator_id=ctx.author.id,
+        )
+
+    await ctx.send(
+        f'Blocked {", ".join(user.mention for user in users)}', hidden=True
+    )
+
+
 @slash.context_menu(
     target=ContextMenuType.MESSAGE,
     name='Report message',
