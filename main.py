@@ -368,10 +368,7 @@ async def lookup_command(ctx: SlashContext, user: Member):
     immune = user.id in CONFIG.immune
 
     # pylint: disable=no-member
-    if Report.objects(user_id=user.id, reviewed=False):
-        open_reports = True
-    else:
-        open_reports = False
+    open_reports = bool(Report.objects(user_id=user.id, reviewed=False))
 
     # pylint: disable=no-member
     if Block.objects(user_id=user.id):
@@ -527,7 +524,7 @@ async def report_message(ctx: MenuContext):
         await ctx.send(f"You've already reported {user.mention}.", hidden=True)
         return
     elif Report.objects(message_id=message.id):
-        await ctx.send(f'This message has already been reported.', hidden=True)
+        await ctx.send('This message has already been reported.', hidden=True)
         return
 
     report = Report(
