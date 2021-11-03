@@ -23,6 +23,7 @@ from discord_slash import (
 from discord_slash.model import ContextMenuType, SlashCommandOptionType
 from discord_slash.utils.manage_commands import create_choice, create_option
 from loguru import logger
+from topgg import DBLClient
 
 from config import CONFIG
 from database import Block, Report
@@ -45,6 +46,16 @@ slash = SlashCommand(
     # sync_commands=True,
 )
 
+client.topggpy = DBLClient(client, CONFIG.topgg.token)
+
+
+async def post_guild_count():
+    try:
+        await client.topggpy.post_guild_count()
+        logger.trace(f'Posted server count ({client.topggpy.guild_count})')
+    except:
+        logger.exception('Failed to post server count')
+
 
 @client.event
 async def on_ready():
@@ -52,6 +63,7 @@ async def on_ready():
     await client.change_presence(
         activity=Activity(type=ActivityType.watching, name='/report')
     )
+    await post_guild_count()
     logger.info(f'Ready as {client.user}')
 
 
@@ -145,6 +157,8 @@ async def on_guild_join(guild: Guild):
 
     await channel.send(embed=embed)
 
+    await post_guild_count()
+
 
 @client.event
 async def on_guild_remove(guild: Guild):
@@ -163,6 +177,8 @@ async def on_guild_remove(guild: Guild):
     embed.add_field(name='Created', value=f'<t:{timestamp}:R>')
 
     await channel.send(embed=embed)
+
+    await post_guild_count()
 
 
 @client.event

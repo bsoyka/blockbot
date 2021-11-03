@@ -4,3 +4,4 @@ dnspython
 dynamic-yaml
 loguru
 mongoengine
+topggpy

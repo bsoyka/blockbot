@@ -4,6 +4,9 @@ bot:
 database:
     host: mongodb+srv://xxx:xxx@xxx/xxx?retryWrites=true&w=majority
 
+topgg:
+    token: xxx
+
 server:
     id: 123
     appeals_id: 123
