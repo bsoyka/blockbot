@@ -7,6 +7,9 @@ database:
 topgg:
     token: xxx
 
+sentry:
+    dsn: https://xxx@xxx.ingest.sentry.io/123
+
 server:
     id: 123
     appeals_id: 123

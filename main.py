@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from glob import glob
 from uuid import uuid4
 
+import sentry_sdk
 from discord import (
     Activity,
     ActivityType,
@@ -14,12 +15,7 @@ from discord import (
 )
 from discord.errors import Forbidden
 from discord.ext.commands import Bot
-from discord_slash import (
-    ComponentContext,
-    MenuContext,
-    SlashCommand,
-    SlashContext,
-)
+from discord_slash import ComponentContext, MenuContext, SlashCommand, SlashContext
 from discord_slash.model import ContextMenuType, SlashCommandOptionType
 from discord_slash.utils.manage_commands import create_choice, create_option
 from loguru import logger
@@ -36,6 +32,8 @@ from utils import (
     make_report_actionrows,
     send_report_embed,
 )
+
+sentry_sdk.init(CONFIG.sentry.dsn)
 
 intents = Intents.default()
 intents.members = True  # pylint: disable=assigning-non-slot
